@@ -1,4 +1,4 @@
-API RESTful completa para uma aplicação Kanban de gestão de tarefas, inspirada no Trello e Asana. O projeto foi construído do zero com foco em segurança, escalabilidade e integridade dos dados, servindo como a espinha dorsal para qualquer interface front-end."
+API RESTful completa para uma aplicação Kanban de gestão de tarefas, inspirada no Trello e Asana. O projeto foi construído do zero com foco em segurança, escalabilidade e integridade dos dados, servindo como a espinha dorsal para qualquer interface front-end.
 
 Principais Funcionalidades Implementadas:
 
