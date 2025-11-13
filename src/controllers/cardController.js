@@ -12,7 +12,6 @@ async function createCard(req, res) {
     try {
         const { listId } = req.params;
         const userId = req.user.id;
-
         const { title, description } = cardSchema.parse(req.body);
 
         const list = await List.findOne({
@@ -38,7 +37,7 @@ async function createCard(req, res) {
         const newCard = await Card.create({
             title,
             description: description || null,
-            listId,
+            listId: parseInt(listId),
             order: newOrder,
         });
 
@@ -136,18 +135,13 @@ async function deleteCard(req, res) {
 }
 
 async function moveCard(req, res) {
+    const { id } = req.params;
+    const { newListId, newOrder } = req.body;
+    const userId = req.user.id;
+
     const t = await sequelize.transaction();
 
     try {
-        const { id } = req.params;
-        const userId = req.user.id;
-        const { newListId, newOrder } = req.body;
-
-
-        if (newOrder < 1) {
-            return res.status(400).json({ message: 'Nova ordem deve ser positiva.' });
-        }
-
         const card = await Card.findOne({
             where: { id },
             include: [{
@@ -156,10 +150,8 @@ async function moveCard(req, res) {
                 include: [{
                     model: Board,
                     as: 'board',
-                    where: { userId },
-                    attributes: []
-                }],
-                attributes: []
+                    where: { userId }
+                }]
             }],
             transaction: t
         });
@@ -180,12 +172,28 @@ async function moveCard(req, res) {
             });
             if (!newList) {
                 await t.rollback();
-                return res.status(403).json({ message: 'Não é permitido mover o cartão para esta lista.' });
+                return res.status(403).json({ message: 'Lista de destino não encontrada ou não permitida.' });
             }
         }
 
-        if (oldListId === newListId) {
+        if (oldListId !== newListId) {
+            await Card.update(
+                { order: sequelize.literal('"order" - 1') },
+                {
+                    where: { listId: oldListId, order: { [Op.gt]: oldOrder } },
+                    transaction: t
+                }
+            );
 
+            await Card.update(
+                { order: sequelize.literal('"order" + 1') },
+                {
+                    where: { listId: newListId, order: { [Op.gte]: newOrder } },
+                    transaction: t
+                }
+            );
+
+        } else {
             if (newOrder > oldOrder) {
                 await Card.update(
                     { order: sequelize.literal('"order" - 1') },
@@ -209,22 +217,6 @@ async function moveCard(req, res) {
                     }
                 );
             }
-        } else {
-
-            await Card.update(
-                { order: sequelize.literal('"order" - 1') },
-                {
-                    where: { listId: oldListId, order: { [Op.gt]: oldOrder } },
-                    transaction: t
-                }
-            );
-            await Card.update(
-                { order: sequelize.literal('"order" + 1') },
-                {
-                    where: { listId: newListId, order: { [Op.gte]: newOrder } },
-                    transaction: t
-                }
-            );
         }
 
         card.listId = newListId;
@@ -237,7 +229,7 @@ async function moveCard(req, res) {
     } catch (error) {
         await t.rollback();
         console.error('Erro ao mover cartão:', error);
-        res.status(500).json({ message: 'Erro interno do servidor.' });
+        res.status(500).json({ message: 'Erro interno do servidor ao mover o cartão.' });
     }
 }
 
